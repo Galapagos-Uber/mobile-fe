@@ -2,10 +2,12 @@ import { StyleSheet } from "react-native";
 
 const commonStyles = StyleSheet.create({
   container: {
+    backgroundColor: "white",
     flex: 1,
     padding: 20,
   },
   header: {
+    backgroundColor: "white",
     elevation: 0, // for Android
     shadowOpacity: 0, // for iOS
   },

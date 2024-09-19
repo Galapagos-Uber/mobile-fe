@@ -53,7 +53,7 @@ function MainTabs() {
       <Tab.Navigator
         screenOptions={({ route }) => ({
           headerShown: false,
-          tabBarActiveTintColor: "#1D4E89",
+          tabBarActiveTintColor: "#1D4E89", //
           tabBarInactiveTintColor: "gray",
           tabBarStyle: {
             backgroundColor: "white",
@@ -181,11 +181,12 @@ export default function App() {
                     />
                     <Stack.Screen
                       name="Main"
-                      component={() => (
-                        // <ProtectedRoutes>
-                        <MainTabs />
-                        // </ProtectedRoutes>
-                      )}
+                      // component={() => (
+                      // <ProtectedRoutes>
+                      // <MainTabs />
+                      // </ProtectedRoutes>
+                      // )}
+                      component={MainTabs}
                       options={{ headerShown: false }}
                     />
                     <Stack.Screen
