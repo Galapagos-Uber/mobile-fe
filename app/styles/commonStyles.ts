@@ -15,6 +15,7 @@ const commonStyles = StyleSheet.create({
     fontSize: 24,
     color: "black",
     fontFamily: "JosefinSans_600SemiBold",
+    padding: 20
   },
   sectionTitle: {
     fontSize: 20,
