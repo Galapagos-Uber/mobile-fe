@@ -24,30 +24,29 @@ import commonStyles from "../styles/commonStyles";
 import { useAuth } from "../context/AuthContext";
 
 const ActivityScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  
+  // used for box width
+  const screenWidth = Dimensions.get('window').width;
+
+  // State to hold the number of boxes
+  // Get number of rides taken
+  const [numBoxes, setNumBoxes] = useState(5);
+
+  const boxes = Array.from({ length: numBoxes }, (_, index) => index);
+  
   return (
     <ScrollView style={commonStyles.container}>
       <Text style={commonStyles.headerTitle}>Activity</Text>
-      <View style={styles.spacingBox}>
-        <View style={styles.container}>
-          <View style={styles.box}>
-            <Text style={styles.boxHeading}>Ride1 on X/X/X</Text>
-            <Text style={styles.info}>From: startPoint</Text>
+      <View style={styles.container}>
+        {boxes.map((box, index) => (
+          <View key={index} style={[styles.box, { width: screenWidth - screenWidth/10 }]}>
+            <Text style={styles.boxHeading}>Ride{index + 1} on X/X/X</Text>
+            <Text style={styles.info}>From: startPoint </Text>
             <Text style={styles.info}>To: endPoint</Text>
             <Text style={styles.info}>Driver: DriverName</Text>
-            <Text style={styles.info}>X.XX miles, X minutes</Text>
+            <Text style={styles.info}>X.XX miles</Text>
           </View>
-        </View>
-      </View>
-      <View style={styles.spacingBox}>
-        <View style={styles.container}>
-          <View style={styles.box}>
-            <Text style={styles.boxHeading}>Ride2 on X/X/X</Text>
-            <Text style={styles.info}>From: startPoint</Text>
-            <Text style={styles.info}>To: endPoint</Text>
-            <Text style={styles.info}>Driver: DriverName</Text>
-            <Text style={styles.info}>X.XX miles, X minutes</Text>
-          </View>
-        </View>
+      ))}
       </View>
       
     </ScrollView>
@@ -201,13 +200,18 @@ const styles = StyleSheet.create({
   },
   container: {
     // flex: 1,
-    // justifyContent: 'center',
-    // alignItems: 'left',
-    // backgroundColor: '#f5f5f5',
+    // flexDirection: 'column-reverse', // Reverse the column direction
+    // padding: 0,
+    flexGrow: 1,
+    justifyContent: 'flex-start', // Align items at the start of the container
+    // alignItems: 'center',
+    flexDirection: 'column-reverse', // Reverse the column direction
+    // padding: 20,
   },
   spacingBox: {
     // flex: 1,
     padding: 5,
+    // marginVertical:10,
     // backgroundColor: '#fff',
     borderRadius: 10,
     // Shadow for iOS
@@ -223,6 +227,8 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: '#fff',
     borderRadius: 10,
+    marginBottom: 15, 
+    justifyContent:'center',
     // Shadow for iOS
     shadowColor: '#000',
     shadowOpacity: 0.1,
