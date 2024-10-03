@@ -2,7 +2,6 @@ import React, { useState, useRef } from "react";
 import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import { Text, TextInput, Button } from "react-native-paper";
 import Logo from "../components/Logo";
-import { signIn } from "../api/auth";
 import { useAuth } from "../context/AuthContext";
 
 const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {

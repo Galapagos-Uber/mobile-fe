@@ -12,43 +12,61 @@ import Logo from "../components/Logo";
 import ProgressDots from "../components/ProgressDots";
 import commonStyles from "../styles/commonStyles";
 import { useSignUp } from "../context/SignUpContext";
-import { signUp } from "../api/auth";
+import { createDriver } from "../api/DriverService";
+import { createRider } from "../api/RiderService";
 
 const SignUpScreen7: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { signUpInfo } = useSignUp();
 
+  const userType = signUpInfo.userType || "";
   const firstName = signUpInfo.firstName || "";
   const lastName = signUpInfo.lastName || "";
   const email = signUpInfo.email || "";
+  const phoneNumber = signUpInfo.phoneNumber || "";
   const password = signUpInfo.password || "";
   const dob = signUpInfo.dob || "";
   const gender = signUpInfo.gender || "";
-  const pronoun = signUpInfo.pronoun || "";
+
+  console.log(signUpInfo);
 
   const handleSignUp = async () => {
-    // try {
-    //   if (!email || !password || !dob) {
-    //     alert("Please ensure all required fields are filled.");
-    //     return;
-    //   }
+    try {
+      if (!firstName || !lastName || !email || !password || !dob) {
+        alert("Please ensure all required fields are filled.");
+        return;
+      }
 
-    //   const response = await signUp({
-    //     firstName,
-    //     lastName,
-    //     email,
-    //     password,
-    //     dob,
-    //     gender,
-    //     pronoun,
-    //   });
+      let response;
 
-    //   if (response.id) {
-    navigation.navigate("Login");
-    //   }
-    // } catch (error) {
-    //   console.error("Sign up error", error);
-    //   alert("There was an error during sign up. Please try again.");
-    // }
+      const requestData = {
+        firstName,
+        lastName,
+        email,
+        password,
+        phoneNumber,
+        dob,
+        gender,
+        isActive: "true",
+      };
+
+      if (userType === "rider") {
+        response = await createRider({
+          ...requestData,
+        });
+      } else {
+        response = await createDriver({
+          ...requestData,
+          licenseNumber: "ABC12345",
+        });
+      }
+
+      if (response?.data?.id) {
+        navigation.navigate("Login");
+      }
+    } catch (error) {
+      console.error("Sign up error", error);
+      alert("There was an error during sign up. Please try again.");
+    }
   };
 
   return (
