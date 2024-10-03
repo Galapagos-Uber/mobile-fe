@@ -24,12 +24,35 @@ import commonStyles from "../styles/commonStyles";
 import { useAuth } from "../context/AuthContext";
 
 const ActivityScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  
+  // used for box width
+  const screenWidth = Dimensions.get('window').width;
+
+  // State to hold the number of boxes
+  // Get number of rides taken
+  const [numBoxes, setNumBoxes] = useState(5);
+
+  const boxes = Array.from({ length: numBoxes }, (_, index) => index);
+  
   return (
     <ScrollView style={commonStyles.container}>
       <Text style={commonStyles.headerTitle}>Activity</Text>
+      <View style={styles.container}>
+        {boxes.map((box, index) => (
+          <View key={index} style={[styles.box, { width: screenWidth - screenWidth/10 }]}>
+            <Text style={styles.boxHeading}>Ride{index + 1} on X/X/X</Text>
+            <Text style={styles.info}>From: startPoint </Text>
+            <Text style={styles.info}>To: endPoint</Text>
+            <Text style={styles.info}>Driver: DriverName</Text>
+            <Text style={styles.info}>X.XX miles</Text>
+          </View>
+      ))}
+      </View>
+      
     </ScrollView>
   );
 };
+
 
 const styles = StyleSheet.create({
   ...commonStyles,
@@ -139,6 +162,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "black",
     fontFamily: "JosefinSans_400Regular",
+    padding: 20
   },
   tableRow: {
     flexDirection: "row",
@@ -173,6 +197,56 @@ const styles = StyleSheet.create({
     color: "white",
     fontFamily: "Inter_500Medium",
     fontSize: 14,
+  },
+  container: {
+    // flex: 1,
+    // flexDirection: 'column-reverse', // Reverse the column direction
+    // padding: 0,
+    flexGrow: 1,
+    justifyContent: 'flex-start', // Align items at the start of the container
+    // alignItems: 'center',
+    flexDirection: 'column-reverse', // Reverse the column direction
+    // padding: 20,
+  },
+  spacingBox: {
+    // flex: 1,
+    padding: 5,
+    // marginVertical:10,
+    // backgroundColor: '#fff',
+    borderRadius: 10,
+    // Shadow for iOS
+    // shadowColor: '#000',
+    // shadowOpacity: 0.1,
+    // shadowOffset: { width: 0, height: 5 },
+    // shadowRadius: 10,
+    // // Elevation for Android
+    // elevation: 5,
+  },
+  box: {
+    // flex: 1,
+    padding: 20,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    marginBottom: 15, 
+    justifyContent:'center',
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 5 },
+    shadowRadius: 10,
+    // Elevation for Android
+    elevation: 5,
+  },
+  boxHeading: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#333',
+  },
+  info: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 5,
   },
 });
 
