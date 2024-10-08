@@ -3,27 +3,31 @@ import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import { Text, TextInput, Button } from "react-native-paper";
 import Logo from "../components/Logo";
 import { useAuth } from "../context/AuthContext";
+import { signIn } from "../api/auth";
 
 const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const { signIn: authenticate } = useAuth();
 
   const passwordInputRef = useRef<any>(null);
 
   const handleSignIn = async () => {
-    // try {
-    //   const response = await signIn({ email, password });
-    //   if (response.accessToken && response.user) {
-    //     authenticate(response.accessToken, response.user);
-    //     navigation.navigate("Main");
-    //   } else {
-    //     console.error("Sign in failed", response.message);
-    //   }
-    // } catch (error) {
-    //   console.error("Sign in error", error);
-    // }
-    navigation.navigate("Main");
+    setLoading(true);
+    try {
+      const response = await signIn({ email, password });
+      if (response.accessToken) {
+        await authenticate(response.accessToken);
+        navigation.navigate("Main");
+      } else {
+        console.error("Sign in failed", response);
+      }
+    } catch (error) {
+      console.error("Sign in error", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -62,6 +66,8 @@ const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         <Button
           mode="contained"
           onPress={handleSignIn}
+          loading={loading}
+          disabled={loading}
           style={styles.loginButton}
           contentStyle={styles.buttonContent}
           labelStyle={styles.buttonLabel}

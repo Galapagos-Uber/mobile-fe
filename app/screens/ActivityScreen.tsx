@@ -3,250 +3,159 @@ import {
   View,
   StyleSheet,
   ScrollView,
-  Image,
   Dimensions,
-  TouchableOpacity,
+  RefreshControl,
 } from "react-native";
-import {
-  Text,
-  Card,
-  Title,
-  Paragraph,
-  ProgressBar,
-  IconButton,
-  Button,
-  Modal,
-  Portal,
-} from "react-native-paper";
-import { Calendar } from "react-native-calendars";
+import { Text, Card, ActivityIndicator, Snackbar } from "react-native-paper";
 import { useQuery } from "react-query";
 import commonStyles from "../styles/commonStyles";
 import { useAuth } from "../context/AuthContext";
+import {
+  getRidesByDriverId,
+  getRidesByRiderId,
+  RideResponseDto,
+} from "../api/RideService";
 
 const ActivityScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  
-  // used for box width
-  const screenWidth = Dimensions.get('window').width;
+  const { userId, role, accessToken } = useAuth();
+  const screenWidth = Dimensions.get("window").width;
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
 
-  // State to hold the number of boxes
-  // Get number of rides taken
-  const [numBoxes, setNumBoxes] = useState(5);
+  const {
+    data: ridesData,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery<RideResponseDto[]>(
+    ["rides", userId, role],
+    async () => {
+      if (role === "rider") {
+        const response = await getRidesByRiderId(userId!);
+        return response.data;
+      } else {
+        const response = await getRidesByDriverId(userId!);
+        return response.data;
+      }
+    },
+    {
+      enabled: !!userId && !!accessToken,
+      onError: () => setSnackbarVisible(true),
+    }
+  );
 
-  const boxes = Array.from({ length: numBoxes }, (_, index) => index);
-  
+  const handleRetry = () => {
+    setSnackbarVisible(false);
+    refetch();
+  };
+
   return (
-    <ScrollView style={commonStyles.container}>
+    <ScrollView
+      style={commonStyles.container}
+      refreshControl={
+        <RefreshControl refreshing={isLoading} onRefresh={refetch} />
+      }
+    >
       <Text style={commonStyles.headerTitle}>Activity</Text>
-      <View style={styles.container}>
-        {boxes.map((box, index) => (
-          <View key={index} style={[styles.box, { width: screenWidth - screenWidth/10 }]}>
-            <Text style={styles.boxHeading}>Ride{index + 1} on X/X/X</Text>
-            <Text style={styles.info}>From: startPoint </Text>
-            <Text style={styles.info}>To: endPoint</Text>
-            <Text style={styles.info}>Driver: DriverName</Text>
-            <Text style={styles.info}>X.XX miles</Text>
-          </View>
-      ))}
-      </View>
-      
+      {isLoading ? (
+        <ActivityIndicator size="large" style={styles.loader} />
+      ) : (
+        <View style={styles.container}>
+          {ridesData?.map((ride, index) => (
+            <Card
+              key={ride.id}
+              style={[styles.box, { width: screenWidth - screenWidth / 10 }]}
+            >
+              <Text style={styles.boxHeading}>
+                Ride {index + 1} on{" "}
+                {new Date(ride.createdDate).toLocaleDateString()}
+              </Text>
+              <Text style={styles.info}>From: {ride.startLocation}</Text>
+              <Text style={styles.info}>To: {ride.endLocation}</Text>
+              <Text style={styles.info}>
+                {role === "rider"
+                  ? `Driver: ${ride.driver?.firstName} ${ride.driver?.lastName}`
+                  : `Rider: ${ride.rider?.firstName} ${ride.rider?.lastName}`}
+              </Text>
+              <Text style={styles.info}>Distance: {ride.distance} miles</Text>
+              <Text style={styles.info}>Fare: ${ride.fare?.toFixed(2)}</Text>
+              <Text style={styles.info}>Status: {ride.status}</Text>
+
+              {/* Vehicle Details */}
+              {ride.driver?.vehicleDetails && (
+                <View style={styles.vehicleDetails}>
+                  <Text style={styles.info}>
+                    Vehicle: {ride.driver.vehicleDetails.make}{" "}
+                    {ride.driver.vehicleDetails.model} (
+                    {ride.driver.vehicleDetails.year})
+                  </Text>
+                  <Text style={styles.info}>
+                    License Plate: {ride.driver.vehicleDetails.licensePlate}
+                  </Text>
+                  <Text style={styles.info}>
+                    Color: {ride.driver.vehicleDetails.color}
+                  </Text>
+                  <Text style={styles.info}>
+                    Car Type: {ride.driver.vehicleDetails.carType}
+                  </Text>
+                </View>
+              )}
+            </Card>
+          ))}
+        </View>
+      )}
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        action={{
+          label: "Retry",
+          onPress: handleRetry,
+        }}
+        duration={Snackbar.DURATION_SHORT}
+      >
+        Unable to fetch latest data.
+      </Snackbar>
     </ScrollView>
   );
 };
 
-
 const styles = StyleSheet.create({
   ...commonStyles,
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  infoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginVertical: 10,
-    paddingHorizontal: 15,
-  },
-  infoTextContainer: {
-    flex: 1,
-  },
-  buttonContainer: {
-    flexDirection: "row",
-  },
-  purpleButton: {
-    backgroundColor: "#9577D4",
-    marginHorizontal: 2,
-  },
-  hollowButton: {
-    borderColor: "#9577D4",
-    borderWidth: 2,
-    borderRadius: 24,
-    marginHorizontal: 2,
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    backgroundColor: "white",
-  },
-  modalContent: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "white",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  modalScrollView: {
-    marginVertical: 20,
-  },
-  symptomRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  buttonRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  confirmButton: {
-    flex: 1,
-    marginRight: 10,
-    backgroundColor: "#9577D4",
-  },
-  cancelButton: {
-    flex: 1,
-    borderColor: "#9577D4",
-  },
-  infoValue: {
-    color: "#9577D4",
-    fontWeight: "bold",
-  },
-  babyImage: {
-    width: 150,
-    height: 150,
-    resizeMode: "contain",
-    alignSelf: "center",
-  },
-  babyInfoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-  },
-  trimesters: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-  },
-  trimesterText: {
-    color: "black",
-    fontFamily: "Inter_400Regular",
-  },
-  trimesterInfo: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginTop: 10,
-  },
-  symptomTable: {
-    marginTop: 10,
-  },
-  tableHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  tableHeaderText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "black",
-    fontFamily: "JosefinSans_400Regular",
-    padding: 20
-  },
-  tableRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 5,
-  },
-  tableData: {
-    fontSize: 16,
-    fontFamily: "Inter_500Medium",
-  },
-  mediumRisk: {
-    backgroundColor: "#FFEB3B",
-  },
-  highRisk: {
-    backgroundColor: "#FF6347",
-  },
-  lowRisk: {
-    backgroundColor: "#32CD32",
-  },
-  greyText: {
-    color: "grey",
-    fontFamily: "Inter_500Medium",
-    marginBottom: 10,
-  },
-  buttonLabel: {
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  buttonLabelText: {
-    color: "white",
-    fontFamily: "Inter_500Medium",
-    fontSize: 14,
-  },
   container: {
-    // flex: 1,
-    // flexDirection: 'column-reverse', // Reverse the column direction
-    // padding: 0,
     flexGrow: 1,
-    justifyContent: 'flex-start', // Align items at the start of the container
-    // alignItems: 'center',
-    flexDirection: 'column-reverse', // Reverse the column direction
-    // padding: 20,
-  },
-  spacingBox: {
-    // flex: 1,
-    padding: 5,
-    // marginVertical:10,
-    // backgroundColor: '#fff',
-    borderRadius: 10,
-    // Shadow for iOS
-    // shadowColor: '#000',
-    // shadowOpacity: 0.1,
-    // shadowOffset: { width: 0, height: 5 },
-    // shadowRadius: 10,
-    // // Elevation for Android
-    // elevation: 5,
+    justifyContent: "flex-start",
   },
   box: {
-    // flex: 1,
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 10,
-    marginBottom: 15, 
-    justifyContent:'center',
-    // Shadow for iOS
-    shadowColor: '#000',
+    marginBottom: 15,
+    justifyContent: "center",
+    shadowColor: "#000",
     shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 5 },
     shadowRadius: 10,
-    // Elevation for Android
     elevation: 5,
   },
   boxHeading: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 10,
-    color: '#333',
+    color: "#333",
   },
   info: {
     fontSize: 16,
-    color: '#666',
+    color: "#666",
     marginBottom: 5,
+  },
+  loader: {
+    marginTop: 20,
+    alignSelf: "center",
+  },
+  vehicleDetails: {
+    marginTop: 10,
+    backgroundColor: "#f9f9f9",
+    padding: 10,
+    borderRadius: 8,
   },
 });
 

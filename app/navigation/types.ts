@@ -1,3 +1,12 @@
+import {
+  NavigationContainer,
+  NavigatorScreenParams,
+} from "@react-navigation/native";
+import {
+  createStackNavigator,
+  StackNavigationProp,
+} from "@react-navigation/stack";
+
 export type RootStackParamList = {
   Login: undefined;
   SignUp1: undefined;
@@ -17,3 +26,5 @@ export type BottomTabParamList = {
   Activity: undefined;
   More: undefined;
 };
+
+const Stack = createStackNavigator<RootStackParamList>();

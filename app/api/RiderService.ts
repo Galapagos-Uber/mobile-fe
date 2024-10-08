@@ -11,7 +11,7 @@ export interface RiderResponseDto {
   gender: string;
   avatarResourcePath: string;
   isActive: string;
-  preferredPaymentMethod: string;
+  preferredPaymentMethod?: string;
   createdDate: string;
   lastModifiedDate: string;
 }

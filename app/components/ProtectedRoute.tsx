@@ -1,21 +1,37 @@
-import React from "react";
-import { View, Text } from "react-native";
+import { useNavigation, NavigationProp } from "@react-navigation/native";
+import { RootStackParamList } from "../navigation/types";
 import { useAuth } from "../context/AuthContext";
+import { View } from "react-native";
+import { ActivityIndicator } from "react-native-paper";
+import React, { useEffect } from "react";
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
+type RootStackNavigationProp = NavigationProp<RootStackParamList>;
+
+const ProtectedRoutes: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+  const navigation = useNavigation<RootStackNavigationProp>();
 
-  if (!isAuthenticated) {
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      navigation.navigate("Login");
+    }
+  }, [loading, isAuthenticated, navigation]);
+
+  if (loading) {
     return (
-      <View>
-        <Text>You are not authorized to view this screen</Text>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#1D4E89" />
       </View>
     );
   }
 
-  return <>{children}</>;
+  if (isAuthenticated) {
+    return <>{children}</>;
+  }
+
+  return null;
 };
 
-export default ProtectedRoute;
+export default ProtectedRoutes;

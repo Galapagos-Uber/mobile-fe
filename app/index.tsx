@@ -2,7 +2,11 @@ import React, { useState } from "react";
 import { NavigationContainer, useNavigation } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Provider as PaperProvider, IconButton } from "react-native-paper";
+import {
+  Provider as PaperProvider,
+  IconButton,
+  ActivityIndicator,
+} from "react-native-paper";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -35,6 +39,7 @@ import { SignUpProvider } from "./context/SignUpContext";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoutes from "./components/ProtectedRoute";
 import ActivityScreen from "./screens/ActivityScreen";
+import { View } from "react-native";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -53,7 +58,7 @@ function MainTabs() {
       <Tab.Navigator
         screenOptions={({ route }) => ({
           headerShown: false,
-          tabBarActiveTintColor: "#1D4E89", //
+          tabBarActiveTintColor: "#1D4E89",
           tabBarInactiveTintColor: "gray",
           tabBarStyle: {
             backgroundColor: "white",
@@ -124,7 +129,11 @@ export default function App() {
   });
 
   if (!fontsLoaded) {
-    return null;
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#1D4E89" />
+      </View>
+    );
   }
 
   return (
@@ -136,9 +145,19 @@ export default function App() {
               <QueryClientProvider client={queryClient}>
                 <NavigationContainer independent={true}>
                   <Stack.Navigator
-                    initialRouteName="Login"
+                    initialRouteName="Main"
                     screenOptions={{ cardStyle: { flex: 1 } }}
                   >
+                    <Stack.Screen
+                      name="Main"
+                      component={() => (
+                        <ProtectedRoutes>
+                          <MainTabs />
+                        </ProtectedRoutes>
+                      )}
+                      options={{ headerShown: false }}
+                    />
+
                     <Stack.Screen
                       name="Login"
                       component={LoginScreen}
@@ -177,16 +196,6 @@ export default function App() {
                     <Stack.Screen
                       name="SignUp7"
                       component={SignUpScreen7}
-                      options={{ headerShown: false }}
-                    />
-                    <Stack.Screen
-                      name="Main"
-                      // component={() => (
-                      // <ProtectedRoutes>
-                      // <MainTabs />
-                      // </ProtectedRoutes>
-                      // )}
-                      component={MainTabs}
                       options={{ headerShown: false }}
                     />
                     <Stack.Screen

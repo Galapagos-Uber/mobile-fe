@@ -1,5 +1,6 @@
 import api from "./index";
 import { AxiosResponse } from "axios";
+import { VehicleResponseDto } from "./VehicleService";
 
 export interface DriverResponseDto {
   id: string;
@@ -12,7 +13,7 @@ export interface DriverResponseDto {
   avatarResourcePath: string;
   isActive: string;
   licenseNumber: string;
-  vehicleDetails: any;
+  vehicleDetails: VehicleResponseDto;
   createdDate: string;
   lastModifiedDate: string;
 }

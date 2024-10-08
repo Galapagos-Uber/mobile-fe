@@ -1,117 +1,282 @@
-import React, { useEffect } from "react";
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-} from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, StyleSheet, Dimensions, FlatList } from "react-native";
 import {
   Text,
   Card,
-  Title,
-  Paragraph,
-  IconButton,
-  ProgressBar,
   Button,
+  ActivityIndicator,
+  Snackbar,
 } from "react-native-paper";
 import commonStyles from "../styles/commonStyles";
 import { useAuth } from "../context/AuthContext";
+import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
+import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
+import {
+  createRide,
+  updateRide,
+  getRidesByDriverId,
+  RideResponseDto,
+} from "../api/RideService";
 import { useQuery } from "react-query";
+import { UserResponseDto } from "../api/UserService";
+import { getRiderById } from "../api/RiderService";
+import { getDriverById } from "../api/DriverService";
+
+const { width, height } = Dimensions.get("window");
 
 const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const { user } = useAuth();
+  const { userId, role, accessToken } = useAuth();
+
+  if (!userId) {
+    return <Text>Please log in to view this page.</Text>;
+  }
+
+  const [startLocation, setStartLocation] = useState<string>("");
+  const [endLocation, setEndLocation] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [requestedRides, setRequestedRides] = useState<RideResponseDto[]>([]);
+
+  const {
+    data: fetchedUser,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery<UserResponseDto>(
+    ["userProfile", role, userId],
+    () =>
+      role === "rider" && userId
+        ? getRiderById(userId).then((res) => res.data)
+        : role === "driver" && userId
+        ? getDriverById(userId).then((res) => res.data)
+        : Promise.reject("Invalid user or role"),
+    {
+      enabled: !!userId && !!role && !!accessToken,
+      onError: () => setSnackbarVisible(true),
+    }
+  );
+
+  const {
+    data: ridesData,
+    isLoading: isRidesLoading,
+    isError: isRidesError,
+    refetch: refetchRides,
+  } = useQuery<RideResponseDto[]>(
+    ["rides", role, userId],
+    () =>
+      role === "driver" && userId
+        ? getRidesByDriverId(userId).then((res) => res.data)
+        : Promise.resolve([]),
+    {
+      enabled: role === "driver" && !!userId && !!accessToken,
+      onError: () => setSnackbarVisible(true),
+    }
+  );
+
+  useEffect(() => {
+    if (role === "driver") {
+      setLoading(true);
+      getRidesByDriverId(userId)
+        .then((response) => {
+          const rides = response.data.filter(
+            (ride) => ride.status === "Requested"
+          );
+          setRequestedRides(rides);
+        })
+        .catch((error) => {
+          setLocationError("Error fetching requested rides");
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [role, userId]);
+
+  const handleCreateRide = async () => {
+    if (!startLocation || !endLocation) {
+      setLocationError("Please select both start and end locations.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await createRide({
+        riderId: userId,
+        startLocation,
+        endLocation,
+      });
+      setLocationError(null);
+      setSnackbarVisible(true);
+    } catch (error) {
+      setLocationError("Failed to create ride. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAcceptRide = async (rideId: string) => {
+    setLoading(true);
+    try {
+      await updateRide(rideId, { status: "Dispatched" });
+      setRequestedRides((prevRides) =>
+        prevRides.filter((ride) => ride.id !== rideId)
+      );
+      setSnackbarVisible(true);
+    } catch (error) {
+      setLocationError("Failed to accept ride. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <ScrollView style={commonStyles.container}>
+    <View style={commonStyles.container}>
       <View style={styles.header}>
-        <Text style={commonStyles.headerTitle}>Hi,</Text>
+        <Text style={commonStyles.headerTitle}>Hi, </Text>
         <Text style={[commonStyles.headerTitle, { color: "#1D4E89" }]}>
-          user.firstName
+          {fetchedUser?.firstName} {fetchedUser?.lastName}
         </Text>
       </View>
-    </ScrollView>
+
+      {role === "rider" ? (
+        <>
+          <GooglePlacesAutocomplete
+            placeholder="From"
+            onPress={(data) => setStartLocation(data.description)}
+            query={{
+              key: "AIzaSyALn0S4rac4u9_a07ULsqMK5MOk727r_NI",
+              language: "en",
+            }}
+            requestUrl={{
+              useOnPlatform: "web",
+              url: "https://cors-anywhere.herokuapp.com/https://maps.googleapis.com/maps/api", // or any proxy server that hits https://maps.googleapis.com/maps/api
+            }}
+            styles={autocompleteStyles}
+          />
+          <GooglePlacesAutocomplete
+            placeholder="To"
+            onPress={(data) => setEndLocation(data.description)}
+            query={{
+              key: "AIzaSyALn0S4rac4u9_a07ULsqMK5MOk727r_NI",
+              language: "en",
+            }}
+            requestUrl={{
+              useOnPlatform: "web",
+              url: "https://cors-anywhere.herokuapp.com/https://maps.googleapis.com/maps/api",
+            }}
+            styles={autocompleteStyles}
+          />
+
+          <MapView
+            provider={PROVIDER_GOOGLE}
+            style={{ flex: 1 }}
+            initialRegion={{
+              latitude: -34.603738,
+              longitude: -58.38157,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            }}
+            zoomTapEnabled={false}
+          />
+
+          <Button
+            mode="contained"
+            onPress={handleCreateRide}
+            disabled={!startLocation || !endLocation || loading}
+            style={styles.button}
+          >
+            Create Ride
+          </Button>
+        </>
+      ) : (
+        <FlatList
+          data={requestedRides}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <Card style={styles.rideCard}>
+              <Card.Content>
+                <Text>Ride from: {item.startLocation}</Text>
+                <Text>Ride to: {item.endLocation}</Text>
+                <Text>
+                  Rider: {item.rider.firstName} {item.rider.lastName}
+                </Text>
+                <Text>Status: {item.status}</Text>
+              </Card.Content>
+              <Card.Actions>
+                <Button
+                  onPress={() => handleAcceptRide(item.id)}
+                  disabled={loading}
+                >
+                  Accept Ride
+                </Button>
+              </Card.Actions>
+            </Card>
+          )}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>No requested rides available.</Text>
+          }
+        />
+      )}
+
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={Snackbar.DURATION_SHORT}
+      >
+        {role === "rider"
+          ? "Ride created successfully!"
+          : "Ride accepted successfully!"}
+      </Snackbar>
+
+      {loading && <ActivityIndicator size="large" style={styles.loader} />}
+      {locationError && <Text style={styles.errorText}>{locationError}</Text>}
+    </View>
   );
+};
+
+const autocompleteStyles = {
+  textInputContainer: {
+    width: "100%",
+    marginBottom: 10,
+  },
+  textInput: {
+    height: 44,
+    color: "#5d5d5d",
+    fontSize: 16,
+    backgroundColor: "#f9f9f9",
+  },
 };
 
 const styles = StyleSheet.create({
   ...commonStyles,
   header: {
-    marginBottom: 20,
-  },
-  cardHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    marginBottom: 20,
     alignItems: "center",
   },
-  image: {
-    width: 100,
-    height: 100,
-    resizeMode: "contain",
+  button: {
+    marginTop: 10,
+    alignSelf: "center",
+    width: "90%",
+  },
+  rideCard: {
+    marginBottom: 10,
+    padding: 10,
+    backgroundColor: "#fff",
+    borderRadius: 8,
+  },
+  loader: {
+    marginTop: 20,
     alignSelf: "center",
   },
-  progressBar: {
-    marginVertical: 10,
-    backgroundColor: "#E0E0E0",
+  errorText: {
+    color: "red",
+    textAlign: "center",
+    marginTop: 10,
   },
-  trackerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  trackerIcon: {
-    paddingHorizontal: 0,
-    marginHorizontal: 0,
-  },
-  trackerProgressBarContainer: {
-    flex: 1,
-    marginLeft: 10,
-  },
-  trackerProgressBar: {
-    backgroundColor: "#E0E0E0",
-  },
-  articleContainer: {
-    paddingVertical: 10,
-  },
-  articleHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 5,
-  },
-  authorPhoto: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 10,
-  },
-  articleInfo: {
-    flex: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  articleTitle: {
-    fontSize: 20,
-    color: "black",
-    fontFamily: "JosefinSans_500Medium",
-  },
-  articleAuthor: {
-    fontSize: 14,
-    color: "grey",
-    fontFamily: "Inter_500Medium",
-  },
-  articleDate: {
-    fontSize: 14,
-    color: "grey",
-    fontFamily: "Inter_500Medium",
-  },
-  articlePreview: {
-    marginTop: 5,
-    color: "grey",
-    fontFamily: "Inter_400Regular",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "grey",
-    marginVertical: 10,
+  emptyText: {
+    textAlign: "center",
+    marginTop: 20,
+    color: "#666",
   },
 });
 
