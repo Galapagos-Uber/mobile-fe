@@ -11,6 +11,8 @@ module.exports = function (api) {
             "@components": "./app/components",
             "@screens": "./app/screens",
             "@utils": "./app/utils",
+            "react-native": "react-native-web",
+            "react-native-maps": "react-native-web-maps",
           },
         },
       ],

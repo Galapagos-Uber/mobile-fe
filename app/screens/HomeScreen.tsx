@@ -9,22 +9,47 @@ import {
 } from "react-native-paper";
 import commonStyles from "../styles/commonStyles";
 import { useAuth } from "../context/AuthContext";
-import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
+// import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
+// import MapView from "react-native-maps"; // google is not defined
+import MapView from "../components/mymap.web";
+// import MapView from "../components/mymap";
+// var { PROVIDER_GOOGLE } = require("react-native-maps").default;
+// import MapView, { PROVIDER_GOOGLE } from "./MapView";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import {
   createRide,
   updateRide,
   getRidesByDriverId,
   RideResponseDto,
+  getRides,
 } from "../api/RideService";
 import { useQuery } from "react-query";
 import { UserResponseDto } from "../api/UserService";
 import { getRiderById } from "../api/RiderService";
 import { getDriverById } from "../api/DriverService";
+import { GoogleMap, useJsApiLoader } from "@react-google-maps/api";
 
 const { width, height } = Dimensions.get("window");
 
 const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const { isLoaded } = useJsApiLoader({
+    id: "google-map-script",
+    googleMapsApiKey: "AIzaSyDLUq8iwf_zsBQNVClpKFoOY1ZqdSZipJw",
+  });
+
+  // const onLoad = React.useCallback(function callback(
+  //   map: React.SetStateAction<null>
+  // ) {
+  //   // This is just an example of getting and using the map instance!!! don't just blindly copy!
+  //   const bounds = new window.google.maps.LatLngBounds(center);
+  //   map?.fitBounds(bounds);
+
+  //   setMap(map);
+  // },
+  // []);
+
+  console.log(isLoaded);
+
   const { userId, role, accessToken } = useAuth();
 
   if (!userId) {
@@ -77,7 +102,8 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   useEffect(() => {
     if (role === "driver") {
       setLoading(true);
-      getRidesByDriverId(userId)
+      // getRidesByDriverId(userId)
+      getRides()
         .then((response) => {
           const rides = response.data.filter(
             (ride) => ride.status === "Requested"
@@ -116,7 +142,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const handleAcceptRide = async (rideId: string) => {
     setLoading(true);
     try {
-      await updateRide(rideId, { status: "Dispatched" });
+      await updateRide(rideId, { status: "Dispatched", driverId: userId });
       setRequestedRides((prevRides) =>
         prevRides.filter((ride) => ride.id !== rideId)
       );
@@ -166,17 +192,15 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             styles={autocompleteStyles}
           />
 
-          <MapView
-            provider={PROVIDER_GOOGLE}
-            style={{ flex: 1 }}
-            initialRegion={{
-              latitude: -34.603738,
-              longitude: -58.38157,
-              latitudeDelta: 0.01,
-              longitudeDelta: 0.01,
+          {/* <GoogleMap
+            onLoad={(map) => {
+              const bounds = new window.google.maps.LatLngBounds();
+              map.fitBounds(bounds);
             }}
-            zoomTapEnabled={false}
-          />
+            onUnmount={(map) => {
+              // do your stuff before map is unmounted
+            }}
+          /> */}
 
           <Button
             mode="contained"
@@ -229,6 +253,18 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
       {loading && <ActivityIndicator size="large" style={styles.loader} />}
       {locationError && <Text style={styles.errorText}>{locationError}</Text>}
+      <MapView
+        // provider={PROVIDER_GOOGLE}
+        provider="google"
+        style={{ flex: 1 }}
+        initialRegion={{
+          latitude: -34.603738,
+          longitude: -58.38157,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }}
+        // zoomTapEnabled={false}
+      />
     </View>
   );
 };
