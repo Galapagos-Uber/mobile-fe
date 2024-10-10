@@ -24,7 +24,6 @@ import { getDriverById } from "../api/DriverService";
 import { RiderResponseDto } from "../api/RiderService";
 import { DriverResponseDto } from "../api/DriverService";
 import { UserResponseDto } from "../api/UserService";
-// import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 
 const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { userId, role, accessToken } = useAuth();
@@ -152,14 +151,14 @@ const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   />
                   <Divider />
                   {/* Show additional fields based on role */}
-                  {role === "rider" &&
-                    "preferredPaymentMethod" in fetchedUser && (
-                      <List.Item
-                        title="Preferred Payment Method"
-                        description={fetchedUser.preferredPaymentMethod}
-                        left={() => <List.Icon icon="credit-card" />}
-                      />
-                    )}
+                  {role === "rider" && (
+                    // "preferredPaymentMethod" in fetchedUser &&
+                    <List.Item
+                      title="Preferred Payment Method"
+                      description={fetchedUser?.preferredPaymentMethod}
+                      left={() => <List.Icon icon="credit-card" />}
+                    />
+                  )}
                   {role === "driver" && "licenseNumber" in fetchedUser && (
                     <>
                       <List.Item
@@ -168,17 +167,18 @@ const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                         left={() => <List.Icon icon="card-account-details" />}
                       />
                       <List.Item
-                        title="Car"
-                        description={
-                          fetchedUser.vehicleDetails?.color +
-                          fetchedUser.vehicleDetails?.make +
-                          fetchedUser.vehicleDetails?.model +
-                          fetchedUser.vehicleDetails?.year +
-                          fetchedUser.vehicleDetails?.carType +
-                          fetchedUser.vehicleDetails?.licensePlate
-                        }
+                        title="Vehicle"
                         left={() => <List.Icon icon="car" />}
                       />
+                      <View style={styles.row}>
+                        <Text>{fetchedUser.vehicleDetails?.color}</Text>
+                        <Text>{fetchedUser.vehicleDetails?.make}</Text>
+                        <Text>{fetchedUser.vehicleDetails?.model}</Text>
+                      </View>
+                      <Text>
+                        {fetchedUser.vehicleDetails?.carType} -{" "}
+                        {fetchedUser.vehicleDetails?.licensePlate}
+                      </Text>
                     </>
                   )}
                 </List.Section>
@@ -186,17 +186,6 @@ const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             </>
           )
         )}
-        {/* <MapView
-          provider={PROVIDER_GOOGLE}
-          style={{ flex: 1 }}
-          initialRegion={{
-            latitude: -34.603738,
-            longitude: -58.38157,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          }}
-          zoomTapEnabled={false}
-        /> */}
       </ScrollView>
     </View>
   );
@@ -241,6 +230,11 @@ const styles = StyleSheet.create({
   loader: {
     marginTop: 20,
     alignSelf: "center",
+  },
+  row: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
   },
 });
 

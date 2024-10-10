@@ -9,12 +9,8 @@ import {
 } from "react-native-paper";
 import commonStyles from "../styles/commonStyles";
 import { useAuth } from "../context/AuthContext";
-// import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
-// import MapView from "react-native-maps"; // google is not defined
 import MapView from "../components/mymap.web";
-// import MapView from "../components/mymap";
-// var { PROVIDER_GOOGLE } = require("react-native-maps").default;
-// import MapView, { PROVIDER_GOOGLE } from "./MapView";
+var { Marker, PROVIDER_GOOGLE } = require("react-native-maps").default;
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import {
   createRide,
@@ -28,6 +24,7 @@ import { UserResponseDto } from "../api/UserService";
 import { getRiderById } from "../api/RiderService";
 import { getDriverById } from "../api/DriverService";
 import { GoogleMap, useJsApiLoader } from "@react-google-maps/api";
+import * as Location from "expo-location";
 
 const { width, height } = Dimensions.get("window");
 
@@ -37,25 +34,29 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     googleMapsApiKey: "AIzaSyDLUq8iwf_zsBQNVClpKFoOY1ZqdSZipJw",
   });
 
-  // const onLoad = React.useCallback(function callback(
-  //   map: React.SetStateAction<null>
-  // ) {
-  //   // This is just an example of getting and using the map instance!!! don't just blindly copy!
-  //   const bounds = new window.google.maps.LatLngBounds(center);
-  //   map?.fitBounds(bounds);
-
-  //   setMap(map);
-  // },
-  // []);
-
-  console.log(isLoaded);
-
   const { userId, role, accessToken } = useAuth();
 
   if (!userId) {
     return <Text>Please log in to view this page.</Text>;
   }
 
+  const [location, setLocation] = useState(null);
+  const [errorMsg, setErrorMsg] = useState<String | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setErrorMsg("Permission to access location was denied");
+        return;
+      }
+
+      let currentLocation = await Location.getCurrentPositionAsync({});
+      setLocation(currentLocation.coords);
+    })();
+  }, []);
+
+  const [rideCreated, setRideCreated] = useState(false);
   const [startLocation, setStartLocation] = useState<string>("");
   const [endLocation, setEndLocation] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -132,6 +133,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       });
       setLocationError(null);
       setSnackbarVisible(true);
+      setRideCreated(true);
     } catch (error) {
       setLocationError("Failed to create ride. Please try again.");
     } finally {
@@ -156,89 +158,117 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   return (
     <View style={commonStyles.container}>
-      <View style={styles.header}>
-        <Text style={commonStyles.headerTitle}>Hi, </Text>
-        <Text style={[commonStyles.headerTitle, { color: "#1D4E89" }]}>
-          {fetchedUser?.firstName} {fetchedUser?.lastName}
-        </Text>
-      </View>
+      {rideCreated ? (
+        isLoaded ? (
+          <MapView
+            // style={styles.map}
+            provider={PROVIDER_GOOGLE}
+            //   initialRegion={{
+            //     latitude: -34.603738,
+            //     longitude: -58.38157,
+            //     latitudeDelta: 0.01,
+            //     longitudeDelta: 0.01,
+            //   }}
 
-      {role === "rider" ? (
-        <>
-          <GooglePlacesAutocomplete
-            placeholder="From"
-            onPress={(data) => setStartLocation(data.description)}
-            query={{
-              key: "AIzaSyALn0S4rac4u9_a07ULsqMK5MOk727r_NI",
-              language: "en",
+            region={{
+              latitude: location?.latitude,
+              longitude: location?.longitude,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
             }}
-            requestUrl={{
-              useOnPlatform: "web",
-              url: "https://cors-anywhere.herokuapp.com/https://maps.googleapis.com/maps/api", // or any proxy server that hits https://maps.googleapis.com/maps/api
-            }}
-            styles={autocompleteStyles}
-          />
-          <GooglePlacesAutocomplete
-            placeholder="To"
-            onPress={(data) => setEndLocation(data.description)}
-            query={{
-              key: "AIzaSyALn0S4rac4u9_a07ULsqMK5MOk727r_NI",
-              language: "en",
-            }}
-            requestUrl={{
-              useOnPlatform: "web",
-              url: "https://cors-anywhere.herokuapp.com/https://maps.googleapis.com/maps/api",
-            }}
-            styles={autocompleteStyles}
-          />
-
-          {/* <GoogleMap
-            onLoad={(map) => {
-              const bounds = new window.google.maps.LatLngBounds();
-              map.fitBounds(bounds);
-            }}
-            onUnmount={(map) => {
-              // do your stuff before map is unmounted
-            }}
-          /> */}
-
-          <Button
-            mode="contained"
-            onPress={handleCreateRide}
-            disabled={!startLocation || !endLocation || loading}
-            style={styles.button}
+            showsUserLocation={true}
+            followsUserLocation={true}
           >
-            Create Ride
-          </Button>
-        </>
+            <Marker
+              coordinate={{
+                latitude: location?.latitude,
+                longitude: location?.longitude,
+              }}
+              title="You are here"
+            />
+          </MapView>
+        ) : (
+          <ActivityIndicator size="large" style={styles.loader} />
+        )
       ) : (
-        <FlatList
-          data={requestedRides}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <Card style={styles.rideCard}>
-              <Card.Content>
-                <Text>Ride from: {item.startLocation}</Text>
-                <Text>Ride to: {item.endLocation}</Text>
-                <Text>
-                  Rider: {item.rider.firstName} {item.rider.lastName}
+        <>
+          <View style={styles.header}>
+            <Text style={commonStyles.headerTitle}>Hi, </Text>
+            <Text style={[commonStyles.headerTitle, { color: "#1D4E89" }]}>
+              {fetchedUser?.firstName} {fetchedUser?.lastName}
+            </Text>
+          </View>
+
+          {role === "rider" ? (
+            <>
+              <GooglePlacesAutocomplete
+                placeholder="From"
+                onPress={(data) => setStartLocation(data.description)}
+                query={{
+                  key: "AIzaSyALn0S4rac4u9_a07ULsqMK5MOk727r_NI",
+                  language: "en",
+                }}
+                requestUrl={{
+                  useOnPlatform: "web",
+                  url: "https://cors-anywhere.herokuapp.com/https://maps.googleapis.com/maps/api", // or any proxy server that hits https://maps.googleapis.com/maps/api
+                }}
+                styles={autocompleteStyles}
+              />
+              <GooglePlacesAutocomplete
+                placeholder="To"
+                onPress={(data) => setEndLocation(data.description)}
+                query={{
+                  key: "AIzaSyALn0S4rac4u9_a07ULsqMK5MOk727r_NI",
+                  language: "en",
+                }}
+                requestUrl={{
+                  useOnPlatform: "web",
+                  url: "https://cors-anywhere.herokuapp.com/https://maps.googleapis.com/maps/api",
+                }}
+                styles={autocompleteStyles}
+              />
+
+              <Button
+                mode="contained"
+                onPress={handleCreateRide}
+                disabled={!startLocation || !endLocation || loading}
+                style={styles.button}
+              >
+                Create Ride
+              </Button>
+            </>
+          ) : (
+            <FlatList
+              data={requestedRides}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <Card style={styles.rideCard}>
+                  <Card.Content>
+                    <Text>Ride from: {item.startLocation}</Text>
+                    <Text>Ride to: {item.endLocation}</Text>
+                    <Text>
+                      Rider: {item.rider.firstName} {item.rider.lastName}
+                    </Text>
+                    <Text>Status: {item.status}</Text>
+                  </Card.Content>
+                  <Card.Actions>
+                    <Button
+                      onPress={() => handleAcceptRide(item.id)}
+                      disabled={loading}
+                    >
+                      Accept Ride
+                    </Button>
+                  </Card.Actions>
+                </Card>
+              )}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>
+                  No requested rides available.
                 </Text>
-                <Text>Status: {item.status}</Text>
-              </Card.Content>
-              <Card.Actions>
-                <Button
-                  onPress={() => handleAcceptRide(item.id)}
-                  disabled={loading}
-                >
-                  Accept Ride
-                </Button>
-              </Card.Actions>
-            </Card>
+              }
+            />
           )}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>No requested rides available.</Text>
-          }
-        />
+        </>
       )}
 
       <Snackbar
@@ -253,18 +283,6 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
       {loading && <ActivityIndicator size="large" style={styles.loader} />}
       {locationError && <Text style={styles.errorText}>{locationError}</Text>}
-      <MapView
-        // provider={PROVIDER_GOOGLE}
-        provider="google"
-        style={{ flex: 1 }}
-        initialRegion={{
-          latitude: -34.603738,
-          longitude: -58.38157,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        }}
-        // zoomTapEnabled={false}
-      />
     </View>
   );
 };
