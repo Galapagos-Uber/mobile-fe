@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, Dimensions, FlatList } from "react-native";
+import { View, StyleSheet, Dimensions, FlatList, Platform } from "react-native";
 import {
   Text,
   Card,
@@ -25,6 +25,7 @@ import { getRiderById } from "../api/RiderService";
 import { getDriverById } from "../api/DriverService";
 import { GoogleMap, useJsApiLoader } from "@react-google-maps/api";
 import * as Location from "expo-location";
+// import { LocationObjectCoords } from "expo-location";
 
 const { width, height } = Dimensions.get("window");
 
@@ -40,19 +41,22 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     return <Text>Please log in to view this page.</Text>;
   }
 
-  const [location, setLocation] = useState(null);
+  const [location, setLocation] =
+    useState<Location.LocationObjectCoords | null>(null);
   const [errorMsg, setErrorMsg] = useState<String | null>(null);
 
   useEffect(() => {
     (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
+      console.log("Permission status:", status);
       if (status !== "granted") {
         setErrorMsg("Permission to access location was denied");
         return;
       }
 
       let currentLocation = await Location.getCurrentPositionAsync({});
-      setLocation(currentLocation.coords);
+      console.log("Current location:", currentLocation);
+      setLocation(currentLocation?.coords);
     })();
   }, []);
 
@@ -118,7 +122,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   }, [role, userId]);
 
-  const handleCreateRide = async () => {
+  const handleRequestRide = async () => {
     if (!startLocation || !endLocation) {
       setLocationError("Please select both start and end locations.");
       return;
@@ -163,13 +167,12 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           <MapView
             // style={styles.map}
             provider={PROVIDER_GOOGLE}
-            //   initialRegion={{
-            //     latitude: -34.603738,
-            //     longitude: -58.38157,
-            //     latitudeDelta: 0.01,
-            //     longitudeDelta: 0.01,
-            //   }}
-
+            // initialRegion={{
+            //   latitude: 40.034901,
+            //   longitude: -75.337349,
+            //   latitudeDelta: 0.01,
+            //   longitudeDelta: 0.01,
+            // }}
             region={{
               latitude: location?.latitude,
               longitude: location?.longitude,
@@ -230,11 +233,11 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
               <Button
                 mode="contained"
-                onPress={handleCreateRide}
+                onPress={handleRequestRide}
                 disabled={!startLocation || !endLocation || loading}
                 style={styles.button}
               >
-                Create Ride
+                Request Ride
               </Button>
             </>
           ) : (
