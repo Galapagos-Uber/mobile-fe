@@ -176,7 +176,7 @@ const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                         <Text>{fetchedUser.vehicleDetails?.model}</Text>
                       </View>
                       <Text>
-                        {fetchedUser.vehicleDetails?.carType} -{" "}
+                        {fetchedUser.vehicleDetails?.carType} |{" "}
                         {fetchedUser.vehicleDetails?.licensePlate}
                       </Text>
                     </>
