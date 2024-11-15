@@ -6,7 +6,7 @@ import {
   Dimensions,
   RefreshControl,
 } from "react-native";
-import { Text, Card, ActivityIndicator, Snackbar } from "react-native-paper";
+import { Text, Card, ActivityIndicator, Snackbar, Button, Menu } from "react-native-paper";
 import { useQuery } from "react-query";
 import commonStyles from "../styles/commonStyles";
 import { useAuth } from "../context/AuthContext";
@@ -20,6 +20,8 @@ const ActivityScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { userId, role, accessToken } = useAuth();
   const screenWidth = Dimensions.get("window").width;
   const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [sortOption, setSortOption] = useState("dateDesc");
+  const [menuVisible, setMenuVisible] = useState(false);
 
   const {
     data: ridesData,
@@ -48,6 +50,21 @@ const ActivityScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     refetch();
   };
 
+  const sortedRides = () => {
+    if (!ridesData) return [];
+
+    return [...ridesData].sort((a, b) => {
+      if (sortOption === "dateAsc") {
+        return new Date(a.createdDate).getTime() - new Date(b.createdDate).getTime();
+      } else if (sortOption === "dateDesc") {
+        return new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
+      } else if (sortOption === "location") {
+        return a.startLocation.localeCompare(b.startLocation);
+      }
+      return 0;
+    });
+  };
+
   return (
     <ScrollView
       style={commonStyles.container}
@@ -56,17 +73,33 @@ const ActivityScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       }
     >
       <Text style={commonStyles.headerTitle}>Activity</Text>
+      
+      <View style={styles.sortContainer}>
+        <Button onPress={() => setMenuVisible(true)} mode="outlined">
+          Sort
+        </Button>
+        <Menu
+          visible={menuVisible}
+          onDismiss={() => setMenuVisible(false)}
+          anchor={<Button onPress={() => setMenuVisible(true)}>Sort</Button>}
+        >
+          <Menu.Item onPress={() => { setSortOption("dateAsc"); setMenuVisible(false); }} title="Date Ascending" />
+          <Menu.Item onPress={() => { setSortOption("dateDesc"); setMenuVisible(false); }} title="Date Descending" />
+          <Menu.Item onPress={() => { setSortOption("location"); setMenuVisible(false); }} title="Location" />
+        </Menu>
+      </View>
+
       {isLoading ? (
         <ActivityIndicator size="large" style={styles.loader} />
       ) : (
         <View style={styles.container}>
-          {ridesData?.map((ride, index) => (
+          {sortedRides().map((ride, index) => (
             <Card
               key={ride.id}
               style={[styles.box, { width: screenWidth - screenWidth / 10 }]}
             >
               <Text style={styles.boxHeading}>
-                Ride {index + 1} on{" "}
+                Ride on{" "}
                 {new Date(ride.createdDate).toLocaleDateString()}
               </Text>
               <Text style={styles.info}>From: {ride.startLocation}</Text>
@@ -77,7 +110,7 @@ const ActivityScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   : `Rider: ${ride.rider?.firstName} ${ride.rider?.lastName}`}
               </Text>
               <Text style={styles.info}>Distance: {ride.distance} miles</Text>
-              <Text style={styles.info}>Fare: ${ride.fare?.toFixed(2)}</Text>
+              {/* <Text style={styles.info}>Fare: ${ride.fare?.toFixed(2)}</Text> */}
               <Text style={styles.info}>Status: {ride.status}</Text>
 
               {/* Vehicle Details */}
@@ -156,6 +189,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#f9f9f9",
     padding: 10,
     borderRadius: 8,
+  },
+  sortContainer: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    padding: 10,
   },
 });
 
