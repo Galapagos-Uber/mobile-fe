@@ -1,12 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import {
-  View,
-  StyleSheet,
-  Dimensions,
-  FlatList,
-  Text,
-  Platform,
-} from "react-native";
+import { View, StyleSheet, Dimensions, FlatList, Text } from "react-native";
 import { ActivityIndicator, Button, Snackbar, Card } from "react-native-paper";
 import {
   GoogleMap,
@@ -27,12 +20,17 @@ import {
 import { useQuery } from "react-query";
 import { getRiderById } from "../api/RiderService";
 import { getDriverById } from "../api/DriverService";
-import commonStyles from "../styles/commonStyles";
+import DriverActions from "../components/DriverActions"; // Adjust the path as necessary
+import InfoBox from "../components/InfoBox"; // Adjust the path as necessary
+
+// Ensure that @types/google.maps is installed
+// npm install --save-dev @types/google.maps
 
 const { width, height } = Dimensions.get("window");
 const CORS_PROXY = "https://cors-anywhere.herokuapp.com/";
 
 const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  // Load Google Maps API
   const { isLoaded, loadError } = useJsApiLoader({
     id: "google-map-script",
     googleMapsApiKey: "AIzaSyDLUq8iwf_zsBQNVClpKFoOY1ZqdSZipJw", // Replace with your actual API key
@@ -44,6 +42,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     return <Text>Please log in to view this page.</Text>;
   }
 
+  // State Variables
   const [location, setLocation] =
     useState<Location.LocationObjectCoords | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -74,6 +73,10 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [estimatedTime, setEstimatedTime] = useState<string>("");
   const [estimatedDistance, setEstimatedDistance] = useState<string>("");
 
+  // Map Reference
+  const mapRef = useRef<google.maps.Map | null>(null);
+
+  // Fetch User Profile
   const {
     data: fetchedUser,
     isLoading: isUserLoading,
@@ -93,7 +96,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   );
 
-  // Fetch user's current location
+  // Fetch User's Current Location
   useEffect(() => {
     (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
@@ -109,7 +112,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     })();
   }, []);
 
-  // Fetch requested rides for drivers
+  // Fetch Requested Rides for Drivers
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (role === "driver" && !acceptedRide) {
@@ -139,7 +142,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     };
   }, [role, userId, acceptedRide]);
 
-  // Polling to check ride status (rider side)
+  // Polling to Check Ride Status (Rider Side)
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (role === "rider" && rideCreated && rideId) {
@@ -156,8 +159,14 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 longitude: location?.longitude || 0,
               });
               calculateDistanceAndTime(
-                driverCoords,
-                startCoords,
+                {
+                  latitude: location!.latitude,
+                  longitude: location!.longitude,
+                },
+                {
+                  latitude: startCoords!.latitude,
+                  longitude: startCoords!.longitude,
+                },
                 setEstimatedTime,
                 setEstimatedDistance
               );
@@ -176,6 +185,11 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             if (ride.status === "In Transit") {
               setSnackbarVisible(true);
               console.log("Ride is now in transit.");
+            }
+
+            if (ride.status === "Completed") {
+              setSnackbarVisible(true);
+              console.log("Ride has been completed.");
             }
           })
           .catch((error) => {
@@ -229,7 +243,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   };
 
-  // Geocode address to coordinates with CORS Proxy
+  // Geocode Address to Coordinates with CORS Proxy
   const geocodeAddress = async (address: string) => {
     try {
       const response = await fetch(
@@ -251,6 +265,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   };
 
+  // Handle Ride Request (Rider Side)
   const handleRequestRide = async () => {
     if (!startLocation || !endLocation) {
       setLocationError("Please select both start and end locations.");
@@ -288,7 +303,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       setLocationError(null);
       setSnackbarVisible(true);
       setRideCreated(true);
-      setRideStatus("Ride Requested");
+      setRideStatus("Requested");
       console.log("Ride requested successfully.");
     } catch (error) {
       console.error(error);
@@ -298,11 +313,12 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   };
 
+  // Handle Ride Acceptance (Driver Side)
   const handleAcceptRide = async (rideId: string) => {
     setLoading(true);
     try {
       await updateRide(rideId, {
-        status: "Dispatched",
+        status: "Dispatched", // Update status to "Dispatched"
         driverId: userId,
       });
       setRequestedRides((prevRides) =>
@@ -314,32 +330,42 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       );
       setAcceptedRide(acceptedRideData || null);
 
-      if (acceptedRideData) {
+      if (
+        acceptedRideData &&
+        acceptedRideData.startLocation &&
+        acceptedRideData.endLocation &&
+        location
+      ) {
         const riderStartCoords = await geocodeAddress(
           acceptedRideData.startLocation
         );
         const riderEndCoords = await geocodeAddress(
           acceptedRideData.endLocation
         );
-        setStartCoords({
-          latitude: riderStartCoords!.lat,
-          longitude: riderStartCoords!.lng,
-        });
-        setEndCoords({
-          latitude: riderEndCoords!.lat,
-          longitude: riderEndCoords!.lng,
-        });
-        setRideCreated(true);
-        setRideStatus("Ride Accepted");
-        setDriverCoords(location);
+        if (riderStartCoords && riderEndCoords) {
+          setStartCoords({
+            latitude: riderStartCoords.lat,
+            longitude: riderStartCoords.lng,
+          });
+          setEndCoords({
+            latitude: riderEndCoords.lat,
+            longitude: riderEndCoords.lng,
+          });
+          setRideCreated(true);
+          setRideStatus("Dispatched");
+          setDriverCoords({
+            latitude: location.latitude,
+            longitude: location.longitude,
+          });
 
-        // Calculate ETA and distance
-        calculateDistanceAndTime(
-          { latitude: location!.latitude, longitude: location!.longitude },
-          { latitude: riderStartCoords!.lat, longitude: riderStartCoords!.lng },
-          setEstimatedTime,
-          setEstimatedDistance
-        );
+          // Calculate ETA and distance
+          calculateDistanceAndTime(
+            { latitude: location.latitude, longitude: location.longitude },
+            { latitude: riderStartCoords.lat, longitude: riderStartCoords.lng },
+            setEstimatedTime,
+            setEstimatedDistance
+          );
+        }
       }
       setSnackbarVisible(true);
       console.log("Ride accepted successfully.");
@@ -351,7 +377,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   };
 
-  // Helper function to calculate distance using Haversine formula
+  // Helper Function to Calculate Distance Using Haversine Formula
   const getDistance = (
     coord1: { latitude: number; longitude: number },
     coord2: { latitude: number; longitude: number }
@@ -370,7 +396,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     return R * c; // Distance in km
   };
 
-  // Function to simulate driver movement
+  // Function to Simulate Driver Movement Towards Rider's Start Location
   const moveDriverTowardsRider = () => {
     if (!driverCoords || !startCoords) return;
 
@@ -411,7 +437,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
     if (distance < 0.05) {
       // Approximately 50 meters
-      setRideStatus("Passenger Picked Up");
+      setRideStatus("In Transit");
       if (driverMovementInterval.current) {
         clearInterval(driverMovementInterval.current);
         driverMovementInterval.current = null;
@@ -420,10 +446,63 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   };
 
-  const driverMovementInterval = useRef<NodeJS.Timeout | null>(null);
+  // Function to Simulate Start Location Moving Towards End Location
+  const moveStartTowardsEnd = () => {
+    if (!startCoords || !endCoords) return;
 
+    const step = 0.001; // Adjust for desired speed
+
+    let newLatitude = startCoords.latitude;
+    let newLongitude = startCoords.longitude;
+
+    if (Math.abs(startCoords.latitude - endCoords.latitude) > step) {
+      newLatitude += startCoords.latitude < endCoords.latitude ? step : -step;
+    }
+
+    if (Math.abs(startCoords.longitude - endCoords.longitude) > step) {
+      newLongitude +=
+        startCoords.longitude < endCoords.longitude ? step : -step;
+    }
+
+    setStartCoords({
+      latitude: newLatitude,
+      longitude: newLongitude,
+    });
+
+    // Recalculate ETA and distance
+    calculateDistanceAndTime(
+      { latitude: newLatitude, longitude: newLongitude },
+      { latitude: endCoords.latitude, longitude: endCoords.longitude },
+      setEstimatedTime,
+      setEstimatedDistance
+    );
+
+    // Check if start location has arrived at end location
+    const distance = getDistance(
+      { latitude: newLatitude, longitude: newLongitude },
+      { latitude: endCoords.latitude, longitude: endCoords.longitude }
+    );
+    console.log("Start to End Distance:", distance);
+
+    if (distance < 0.05) {
+      // Approximately 50 meters
+      setRideStatus("Completed");
+      if (startMovementInterval.current) {
+        clearInterval(startMovementInterval.current);
+        startMovementInterval.current = null;
+      }
+      console.log("Ride has been completed.");
+      setSnackbarVisible(true);
+    }
+  };
+
+  // Refs for Intervals
+  const driverMovementInterval = useRef<NodeJS.Timeout | null>(null);
+  const startMovementInterval = useRef<NodeJS.Timeout | null>(null);
+
+  // Manage Driver Movement Simulation
   useEffect(() => {
-    if (role === "driver" && acceptedRide && rideStatus === "Ride Accepted") {
+    if (role === "driver" && acceptedRide && rideStatus === "Dispatched") {
       if (!driverMovementInterval.current) {
         driverMovementInterval.current = setInterval(
           moveDriverTowardsRider,
@@ -441,13 +520,31 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     };
   }, [role, acceptedRide, rideStatus, driverCoords, startCoords]);
 
-  // Handle passenger picked up
+  // Handle Ride Status "In Transit"
+  useEffect(() => {
+    if (rideStatus === "In Transit") {
+      // Remove driver's marker by setting driverCoords to null
+      setDriverCoords(null);
+      console.log("Driver's marker removed.");
+
+      // Start simulating start location moving towards end location
+      if (!startMovementInterval.current) {
+        startMovementInterval.current = setInterval(
+          moveStartTowardsEnd,
+          5000 // Move every 5 seconds
+        );
+        console.log("Start location movement simulation started.");
+      }
+    }
+  }, [rideStatus]);
+
+  // Handle Passenger Picked Up
   const handlePassengerPickedUp = async () => {
     if (!acceptedRide) return;
     setLoading(true);
     try {
       await updateRide(acceptedRide.id, {
-        status: "In Transit",
+        status: "In Transit", // Update status to "In Transit"
         driverId: userId,
       });
       setRideStatus("In Transit");
@@ -461,7 +558,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   };
 
-  // Handle ride cancellation
+  // Handle Ride Cancellation
   const handleCancelRide = async () => {
     if (!acceptedRide) return;
     setLoading(true);
@@ -487,7 +584,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   };
 
-  // Define markers with 'lat' and 'lng'
+  // Define Markers with 'lat' and 'lng'
   const markers = [
     startCoords && {
       position: { lat: startCoords.latitude, lng: startCoords.longitude },
@@ -505,46 +602,102 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       icon: "blue-dot.png",
     },
   ].filter(Boolean) as Array<{
-    position: { lat: number; lng: number };
+    position: google.maps.LatLngLiteral;
     title: string;
     icon: string;
   }>;
 
-  // Define the path for Polyline with 'lat' and 'lng'
-  const path =
-    rideStatus === "In Transit" && driverCoords
-      ? [
-          { lat: driverCoords.latitude, lng: driverCoords.longitude },
-          { lat: endCoords!.latitude, lng: endCoords!.longitude },
-        ]
-      : driverCoords
-      ? [
-          { lat: driverCoords.latitude, lng: driverCoords.longitude },
-          { lat: startCoords!.latitude, lng: startCoords!.longitude },
-          { lat: endCoords!.latitude, lng: endCoords!.longitude },
-        ]
-      : [];
+  // Define the Path for Polyline with 'lat' and 'lng'
+  const path: google.maps.LatLngLiteral[] = [];
+
+  if (rideStatus === "Dispatched" && driverCoords && startCoords && endCoords) {
+    // Polyline from Driver to Start to End
+    path.push(
+      { lat: driverCoords.latitude, lng: driverCoords.longitude },
+      { lat: startCoords.latitude, lng: startCoords.longitude },
+      { lat: endCoords.latitude, lng: endCoords.longitude }
+    );
+  } else if (rideStatus === "In Transit" && startCoords && endCoords) {
+    // Polyline from Start to End
+    path.push(
+      { lat: startCoords.latitude, lng: startCoords.longitude },
+      { lat: endCoords.latitude, lng: endCoords.longitude }
+    );
+  } else if (rideStatus === "Completed" && startCoords && endCoords) {
+    // Optional: Add any final polyline or actions upon completion
+    path.push(
+      { lat: startCoords.latitude, lng: startCoords.longitude },
+      { lat: endCoords.latitude, lng: endCoords.longitude }
+    );
+  }
+
+  // Render Start and End Location Information at the Top
+  const renderStartEndInfo = () => {
+    if (!startLocation || !endLocation) return null;
+
+    return (
+      <View style={styles.startEndContainer}>
+        <Text style={styles.startEndText}>From: {startLocation}</Text>
+        <Text style={styles.startEndText}>To: {endLocation}</Text>
+      </View>
+    );
+  };
+
+  // Render InfoBox for ETA and Distance
+  const renderInfoBox = () => {
+    if (!estimatedTime || !estimatedDistance) return null;
+
+    return <InfoBox eta={estimatedTime} distance={estimatedDistance} />;
+  };
+
+  // Render DriverActions Conditionally
+  const renderDriverActions = () => {
+    if (
+      role !== "driver" ||
+      !acceptedRide ||
+      rideStatus !== "Dispatched" // Only show when status is "Dispatched"
+    )
+      return null;
+
+    return (
+      <DriverActions
+        onPassengerPickedUp={handlePassengerPickedUp}
+        onCancelRide={handleCancelRide}
+      />
+    );
+  };
+
+  // Initialize map center once to prevent re-centering
+  const [mapCenter, setMapCenter] = useState<google.maps.LatLngLiteral | null>(
+    null
+  );
+
+  useEffect(() => {
+    if (location && !mapCenter) {
+      setMapCenter({
+        lat: location.latitude,
+        lng: location.longitude,
+      });
+    }
+  }, [location, mapCenter]);
 
   // Render Rider Map
   const renderRiderMap = () => {
-    if (!startCoords || !endCoords) {
+    if (!startCoords || !endCoords || !mapCenter) {
       return <ActivityIndicator size="large" style={styles.loader} />;
     }
 
-    const latitudes = markers.map((m) => m.position.lat);
-    const longitudes = markers.map((m) => m.position.lng);
-    const center = {
-      lat: (Math.min(...latitudes) + Math.max(...latitudes)) / 2,
-      lng: (Math.min(...longitudes) + Math.max(...longitudes)) / 2,
-    };
-
     return (
       <View style={styles.mapContainer}>
+        {renderStartEndInfo()}
         {isLoaded ? (
           <GoogleMap
-            mapContainerStyle={{ width: "100%", height: "100%" }}
-            center={center}
+            mapContainerStyle={{ width: "100%", height: "200%" }}
+            center={mapCenter} // Set center only once
             zoom={13}
+            onLoad={(map) => {
+              mapRef.current = map;
+            }}
           >
             {markers.map((marker, index) => (
               <Marker
@@ -560,7 +713,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               <Polyline
                 path={path}
                 options={{
-                  strokeColor: "#000",
+                  strokeColor: "#1D4E89", // Consistent color
                   strokeOpacity: 1,
                   strokeWeight: 3,
                 }}
@@ -571,61 +724,30 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           <ActivityIndicator size="large" style={styles.loader} />
         )}
 
-        {/* Display ETA and Distance */}
-        {/* {estimatedTime && estimatedDistance && ( */}
-        <View style={styles.infoContainer}>
-          <Text style={styles.infoText}>ETA: {estimatedTime}</Text>
-          <Text style={styles.infoText}>Distance: {estimatedDistance}</Text>
-        </View>
-        {/* )} */}
+        {renderInfoBox()}
       </View>
     );
   };
 
   // Render Driver Map
   const renderDriverMap = () => {
-    if (!startCoords || !endCoords || !location) {
+    if (!startCoords || !endCoords || !mapCenter) {
       return <ActivityIndicator size="large" style={styles.loader} />;
     }
 
-    const markersWithDriver = [
-      {
-        position: { lat: location.latitude, lng: location.longitude },
-        title: "Your Location",
-        icon: "blue-dot.png",
-      },
-      ...markers.filter((marker) => marker.title !== "Driver Location"),
-    ];
-
-    const latitudes = markersWithDriver.map((m) => m.position.lat);
-    const longitudes = markersWithDriver.map((m) => m.position.lng);
-    const center = {
-      lat: (Math.min(...latitudes) + Math.max(...latitudes)) / 2,
-      lng: (Math.min(...longitudes) + Math.max(...longitudes)) / 2,
-    };
-
-    // Define path based on ride status
-    const driverPath =
-      rideStatus === "In Transit"
-        ? [
-            { lat: location.latitude, lng: location.longitude },
-            { lat: endCoords.latitude, lng: endCoords.longitude },
-          ]
-        : [
-            { lat: location.latitude, lng: location.longitude },
-            { lat: startCoords.latitude, lng: startCoords.longitude },
-            { lat: endCoords.latitude, lng: endCoords.longitude },
-          ];
-
     return (
       <View style={styles.mapContainer}>
+        {renderStartEndInfo()}
         {isLoaded ? (
           <GoogleMap
             mapContainerStyle={{ width: "100%", height: "100%" }}
-            center={center}
+            center={mapCenter} // Set center only once
             zoom={13}
+            onLoad={(map) => {
+              mapRef.current = map;
+            }}
           >
-            {markersWithDriver.map((marker, index) => (
+            {markers.map((marker, index) => (
               <Marker
                 key={index}
                 position={marker.position}
@@ -635,32 +757,29 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 }}
               />
             ))}
-            <Polyline
-              path={driverPath}
-              options={{
-                strokeColor: "#000",
-                strokeOpacity: 1,
-                strokeWeight: 3,
-              }}
-            />
+            {path.length > 0 && (
+              <Polyline
+                path={path}
+                options={{
+                  strokeColor: "#1D4E89", // Consistent color
+                  strokeOpacity: 1,
+                  strokeWeight: 3,
+                }}
+              />
+            )}
           </GoogleMap>
         ) : (
           <ActivityIndicator size="large" style={styles.loader} />
         )}
 
-        {/* Display ETA and Distance */}
-        {estimatedTime && estimatedDistance && (
-          <View style={styles.infoContainer}>
-            <Text style={styles.infoText}>ETA: {estimatedTime}</Text>
-            <Text style={styles.infoText}>Distance: {estimatedDistance}</Text>
-          </View>
-        )}
+        {renderInfoBox()}
+        {renderDriverActions()}
       </View>
     );
   };
 
   return (
-    <View style={commonStyles.container}>
+    <View style={styles.container}>
       {rideCreated ? (
         role === "rider" || role === "driver" ? (
           role === "rider" ? (
@@ -674,8 +793,8 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       ) : (
         <>
           <View style={styles.header}>
-            <Text style={commonStyles.headerTitle}>Hi, </Text>
-            <Text style={[commonStyles.headerTitle, { color: "#1D4E89" }]}>
+            <Text style={styles.headerTitle}>Hi, </Text>
+            <Text style={[styles.headerTitle, { color: "#1D4E89" }]}>
               {fetchedUser?.firstName} {fetchedUser?.lastName}
             </Text>
           </View>
@@ -717,7 +836,8 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 mode="contained"
                 onPress={handleRequestRide}
                 disabled={!startLocation || !endLocation || loading}
-                style={styles.button}
+                style={styles.requestButton}
+                labelStyle={styles.requestButtonLabel}
               >
                 Request Ride
               </Button>
@@ -740,6 +860,8 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                     <Button
                       onPress={() => handleAcceptRide(item.id)}
                       disabled={loading}
+                      style={styles.acceptButton}
+                      labelStyle={styles.acceptButtonLabel}
                     >
                       Accept Ride
                     </Button>
@@ -765,6 +887,10 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           ? "Ride has been cancelled."
           : rideStatus === "In Transit"
           ? "Ride is now in transit."
+          : rideStatus === "Completed"
+          ? "Ride has been completed."
+          : rideStatus === "Dispatched"
+          ? "Ride has been dispatched."
           : role === "rider"
           ? "Ride requested successfully!"
           : "Ride accepted successfully!"}
@@ -791,23 +917,40 @@ const autocompleteStyles = {
 };
 
 const styles = StyleSheet.create({
-  // Ensure that 'commonStyles' is defined elsewhere and imported if necessary
-  ...commonStyles,
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: "#fff",
+  },
   header: {
     flexDirection: "row",
     marginBottom: 20,
     alignItems: "center",
   },
-  button: {
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+  },
+  requestButton: {
     marginTop: 10,
     alignSelf: "center",
     width: "90%",
+    backgroundColor: "#1D4E89",
+  },
+  requestButtonLabel: {
+    color: "#FFFFFF",
   },
   rideCard: {
     marginBottom: 10,
     padding: 10,
     backgroundColor: "#fff",
     borderRadius: 8,
+  },
+  acceptButton: {
+    backgroundColor: "#1D4E89",
+  },
+  acceptButtonLabel: {
+    color: "#FFFFFF",
   },
   loader: {
     marginTop: 20,
@@ -823,68 +966,28 @@ const styles = StyleSheet.create({
     marginTop: 20,
     color: "#666",
   },
-  statusContainer: {
-    position: "absolute",
-    bottom: 20,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-  },
-  statusText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    backgroundColor: "rgba(255,255,255,0.8)",
-    padding: 10,
-    borderRadius: 5,
-  },
-  etaText: {
-    fontSize: 16,
-    backgroundColor: "rgba(255,255,255,0.8)",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 5,
-    marginTop: 5,
-  },
-  driverActions: {
-    position: "absolute",
-    bottom: 100,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingHorizontal: 20,
-  },
-  actionButton: {
-    width: "45%",
-  },
-  inTransitContainer: {
-    position: "absolute",
-    bottom: 150,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.8)",
-    padding: 10,
-    borderRadius: 5,
-  },
-  inTransitText: {
-    fontSize: 16,
-    color: "#1D4E89",
-  },
   mapContainer: {
     width: "100%",
-    height: height * 0.7, // Adjust as needed
+    height: height * 0.6, // Adjust as needed
     position: "relative",
+    marginBottom: 20,
   },
-  infoContainer: {
+  startEndContainer: {
     position: "absolute",
     top: 10,
     left: 10,
-    backgroundColor: "rgba(255,255,255,0.8)",
+    right: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
     padding: 10,
-    borderRadius: 5,
+    borderRadius: 8,
+    elevation: 5, // For Android shadow
+    shadowColor: "#000", // For iOS shadow
+    shadowOffset: { width: 0, height: 2 }, // For iOS shadow
+    shadowOpacity: 0.25, // For iOS shadow
+    shadowRadius: 3.84, // For iOS shadow
+    zIndex: 1,
   },
-  infoText: {
+  startEndText: {
     fontSize: 16,
     color: "#000",
   },

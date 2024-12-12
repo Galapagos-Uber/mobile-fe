@@ -6,7 +6,14 @@ import {
   Dimensions,
   RefreshControl,
 } from "react-native";
-import { Text, Card, ActivityIndicator, Snackbar, Button, Menu } from "react-native-paper";
+import {
+  Text,
+  Card,
+  ActivityIndicator,
+  Snackbar,
+  Button,
+  Menu,
+} from "react-native-paper";
 import { useQuery } from "react-query";
 import commonStyles from "../styles/commonStyles";
 import { useAuth } from "../context/AuthContext";
@@ -55,9 +62,13 @@ const ActivityScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
     return [...ridesData].sort((a, b) => {
       if (sortOption === "dateAsc") {
-        return new Date(a.createdDate).getTime() - new Date(b.createdDate).getTime();
+        return (
+          new Date(a.createdDate).getTime() - new Date(b.createdDate).getTime()
+        );
       } else if (sortOption === "dateDesc") {
-        return new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
+        return (
+          new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime()
+        );
       } else if (sortOption === "location") {
         return a.startLocation.localeCompare(b.startLocation);
       }
@@ -73,19 +84,38 @@ const ActivityScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       }
     >
       <Text style={commonStyles.headerTitle}>Activity</Text>
-      
+
       <View style={styles.sortContainer}>
-        <Button onPress={() => setMenuVisible(true)} mode="outlined">
-          Sort
-        </Button>
         <Menu
           visible={menuVisible}
           onDismiss={() => setMenuVisible(false)}
-          anchor={<Button onPress={() => setMenuVisible(true)}>Sort</Button>}
+          anchor={
+            <Button onPress={() => setMenuVisible(true)} mode="outlined">
+              Sort
+            </Button>
+          }
         >
-          <Menu.Item onPress={() => { setSortOption("dateAsc"); setMenuVisible(false); }} title="Date Ascending" />
-          <Menu.Item onPress={() => { setSortOption("dateDesc"); setMenuVisible(false); }} title="Date Descending" />
-          <Menu.Item onPress={() => { setSortOption("location"); setMenuVisible(false); }} title="Location" />
+          <Menu.Item
+            onPress={() => {
+              setSortOption("dateAsc");
+              setMenuVisible(false);
+            }}
+            title="Date Ascending"
+          />
+          <Menu.Item
+            onPress={() => {
+              setSortOption("dateDesc");
+              setMenuVisible(false);
+            }}
+            title="Date Descending"
+          />
+          <Menu.Item
+            onPress={() => {
+              setSortOption("location");
+              setMenuVisible(false);
+            }}
+            title="Location"
+          />
         </Menu>
       </View>
 
@@ -99,8 +129,7 @@ const ActivityScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               style={[styles.box, { width: screenWidth - screenWidth / 10 }]}
             >
               <Text style={styles.boxHeading}>
-                Ride on{" "}
-                {new Date(ride.createdDate).toLocaleDateString()}
+                Ride on {new Date(ride.createdDate).toLocaleDateString()}
               </Text>
               <Text style={styles.info}>From: {ride.startLocation}</Text>
               <Text style={styles.info}>To: {ride.endLocation}</Text>
