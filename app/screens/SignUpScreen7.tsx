@@ -79,7 +79,7 @@ const SignUpScreen7: React.FC<{ navigation: any }> = ({ navigation }) => {
         <View style={styles.inner}>
           <Logo />
           <Text style={styles.title}>
-            Welcome to Uber,{" "}
+            Welcome to GalapaGO,{" "}
             <Text>
               {firstName} {lastName}
             </Text>

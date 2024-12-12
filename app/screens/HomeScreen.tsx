@@ -33,7 +33,7 @@ const { width, height } = Dimensions.get("window");
 const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { isLoaded } = useJsApiLoader({
     id: "google-map-script",
-    googleMapsApiKey: "AIzaSyDLUq8iwf_zsBQNVClpKFoOY1ZqdSZipJw",
+    googleMapsApiKey: "YOUR_GOOGLE_MAPS_API_KEY",
   });
 
   const { userId, role, accessToken } = useAuth();
@@ -62,6 +62,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [rideStatus, setRideStatus] = useState<string>("");
 
   const [rideCreated, setRideCreated] = useState(false);
+  const [rideCompleted, setRideCompleted] = useState(false); // Added state variable
   const [rideId, setRideId] = useState<string | null>(null);
   const [startLocation, setStartLocation] = useState<string>("");
   const [endLocation, setEndLocation] = useState<string>("");
@@ -188,7 +189,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
     try {
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${originStr}&destinations=${destStr}&key=AIzaSyDLUq8iwf_zsBQNVClpKFoOY1ZqdSZipJw`
+        `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${originStr}&destinations=${destStr}&key=YOUR_GOOGLE_MAPS_API_KEY`
       );
       const data = await response.json();
       if (data.status === "OK") {
@@ -213,7 +214,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       const response = await fetch(
         `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
           address
-        )}&key=AIzaSyDLUq8iwf_zsBQNVClpKFoOY1ZqdSZipJw`
+        )}&key=YOUR_GOOGLE_MAPS_API_KEY`
       );
       const data = await response.json();
       if (data.status === "OK") {
@@ -310,6 +311,37 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   };
 
+  const renderRideCompletionScreen = () => {
+    return (
+      <View style={styles.completionContainer}>
+        <Text style={styles.completionTitle}>Ride Completed</Text>
+        <Text style={styles.completionText}>
+          Start Location: {startLocation}
+        </Text>
+        <Text style={styles.completionText}>End Location: {endLocation}</Text>
+        <Text style={styles.completionText}>Price: $15.00</Text>
+        <Text style={styles.completionText}>Time Arrived: 3:10 PM</Text>
+        <Button
+          mode="contained"
+          onPress={() => {
+            // Reset states to initial
+            setRideCreated(false);
+            setRideCompleted(false);
+            setRideId(null);
+            setStartCoords(null);
+            setEndCoords(null);
+            setStartLocation("");
+            setEndLocation("");
+            setRideStatus("");
+          }}
+          style={styles.button}
+        >
+          Back to Home
+        </Button>
+      </View>
+    );
+  };
+
   const renderRiderMap = () => {
     if (!startCoords || !endCoords) {
       return <ActivityIndicator size="large" style={styles.loader} />;
@@ -354,14 +386,19 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         </MapView>
         <View style={styles.statusContainer}>
           <Text style={styles.statusText}>{rideStatus}</Text>
-          {rideStatus === "Ride Accepted" && (
-            // estimatedTime &&
-            // estimatedDistance &&
-            <Text style={styles.etaText}>
-              ETA: {estimatedTime} | Distance: {estimatedDistance}
-            </Text>
-          )}
+          {/* {rideStatus === "Ride Accepted" && estimatedTime && estimatedDistance && ( */}
+          <Text style={styles.etaText}>
+            ETA: 3:10 PM | Distance: 4 miles away
+          </Text>
+          {/* )} */}
         </View>
+        <Button
+          mode="contained"
+          onPress={() => setRideCompleted(true)}
+          style={styles.completeButton}
+        >
+          Complete Ride
+        </Button>
       </View>
     );
   };
@@ -411,20 +448,27 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         <View style={styles.statusContainer}>
           <Text style={styles.statusText}>{rideStatus}</Text>
           {rideStatus === "Ride Accepted" && (
-            // estimatedTime &&
-            // estimatedDistance &&
             <Text style={styles.etaText}>
-              ETA: {estimatedTime} | Distance: {estimatedDistance}
+              ETA: 3:10 PM | Distance: 4 miles away
             </Text>
           )}
         </View>
+        <Button
+          mode="contained"
+          onPress={() => setRideCompleted(true)}
+          style={styles.completeButton}
+        >
+          Complete Ride
+        </Button>
       </View>
     );
   };
 
   return (
     <View style={commonStyles.container}>
-      {rideCreated ? (
+      {rideCompleted ? (
+        renderRideCompletionScreen()
+      ) : rideCreated ? (
         isLoaded ? (
           role === "rider" ? (
             renderRiderMap()
@@ -449,7 +493,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 placeholder="From"
                 onPress={(data) => setStartLocation(data.description)}
                 query={{
-                  key: "AIzaSyALn0S4rac4u9_a07ULsqMK5MOk727r_NI",
+                  key: "YOUR_GOOGLE_MAPS_API_KEY",
                   language: "en",
                 }}
                 requestUrl={{
@@ -462,7 +506,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 placeholder="To"
                 onPress={(data) => setEndLocation(data.description)}
                 query={{
-                  key: "AIzaSyALn0S4rac4u9_a07ULsqMK5MOk727r_NI",
+                  key: "YOUR_GOOGLE_MAPS_API_KEY",
                   language: "en",
                 }}
                 requestUrl={{
@@ -598,6 +642,27 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 5,
     marginTop: 5,
+  },
+  completionContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  completionTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 20,
+  },
+  completionText: {
+    fontSize: 18,
+    marginBottom: 10,
+  },
+  completeButton: {
+    position: "absolute",
+    bottom: 100,
+    alignSelf: "center",
+    width: "90%",
   },
 });
 
